@@ -1,0 +1,17 @@
+{
+  "name": "flow-models-common",
+  "version": "0.1.0",
+  "type": "module",
+  "exports": {
+    "./tf-types": "./src/tf-types.ts",
+    "./model-interface": "./src/model-interface.ts",
+    "./pipeline": "./src/pipeline.ts",
+    "./moons-dataset": "./src/moons-dataset.ts",
+    "./train": "./src/train.ts",
+    "./loss-history": "./src/loss-history.ts",
+    "./training-widget": "./src/training-widget.ts",
+    "./moons-widget": "./src/moons-widget.ts",
+    "./types": "./src/types.ts"
+  }
+}
+
