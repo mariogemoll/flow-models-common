@@ -22,7 +22,7 @@ export const createPageState = createPipelineState;
 
 export interface VisualizationCallbacks {
   updateVisualization: (model: FlowModel, container: HTMLDivElement) => void;
-  showTrainingInProgress: (container: HTMLDivElement) => void;
+  showTrainingInProgress?: (container: HTMLDivElement) => void;
 }
 
 export async function initPipeline(
@@ -40,6 +40,29 @@ export async function initPipeline(
 
   // Create pipeline state
   const state = createPipelineState(numEpochs);
+
+  // Default implementation for showTrainingInProgress if not provided
+  const showTrainingInProgress = visualizationCallbacks.showTrainingInProgress || ((container: HTMLDivElement) => {
+    container.innerHTML = `
+      <div style="
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 400px;
+        background: #f5f5f5;
+        border-radius: 4px;
+      ">
+        <div style="text-align: center; color: #666;">
+          <div style="font-size: 18px; font-weight: bold; margin-bottom: 8px;">
+            Training in Progress
+          </div>
+          <div style="font-size: 14px;">
+            Visualization will be available when training is paused or completed
+          </div>
+        </div>
+      </div>
+    `;
+  });
 
   // Moons dataset widget
   initMoonsDataset(moonsDatasetContainer, state);
@@ -144,7 +167,7 @@ export async function initPipeline(
     updateButtonStates();
 
     // Show training in progress view
-    visualizationCallbacks.showTrainingInProgress(flowVisualizationContainer);
+    showTrainingInProgress(flowVisualizationContainer);
 
     trainStatus.textContent = 'Training...';
 
