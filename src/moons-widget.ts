@@ -1,10 +1,11 @@
-import { makeMoons } from './moons-dataset';
-import type { TrainDataState } from './types';
-import type { Tensor2D } from './tf-types';
 import { addFrameUsingScales, drawScatter, getContext } from 'web-ui-common/canvas';
 import { removePlaceholder } from 'web-ui-common/dom';
 import type { Pair } from 'web-ui-common/types';
 import { makeScale } from 'web-ui-common/util';
+
+import { makeMoons } from './moons-dataset';
+import type { Tensor2D } from './tf-types';
+import type { TrainDataState } from './types';
 
 const CANVAS_WIDTH = 400;
 const CANVAS_HEIGHT = 400;

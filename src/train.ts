@@ -1,11 +1,11 @@
 import type * as tfjs from '@tensorflow/tfjs';
+import type { Pair } from 'web-ui-common/types';
 
-import { makeMoons } from './moons-dataset';
 import type { FlowModel, ModelFactory } from './model-interface';
-import type { PipelineState } from './types';
+import { makeMoons } from './moons-dataset';
 import type { Tensor1D, Tensor2D } from './tf-types';
 import type { TrainingWidget } from './training-widget';
-import type { Pair } from 'web-ui-common/types';
+import type { PipelineState } from './types';
 
 /**
  * Type guard to check if a model has forward/inverse methods
@@ -15,20 +15,21 @@ function hasForwardInverse(model: FlowModel): model is FlowModel & {
   forward: (x: Tensor2D) => [Tensor2D[], Tensor1D];
   inverse: (z: Tensor2D) => [Tensor2D[], Tensor1D];
 } {
+  const modelUnknown = model as unknown as Record<string, unknown>;
   return 'forward' in model && 'inverse' in model &&
-         typeof (model as any).forward === 'function' &&
-         typeof (model as any).inverse === 'function';
+         typeof modelUnknown.forward === 'function' &&
+         typeof modelUnknown.inverse === 'function';
 }
 
 /**
  * Train the flow-based model
  * Returns the trained model
  */
-export async function trainModel(
+export async function trainModel<T extends FlowModel = FlowModel>(
   state: PipelineState,
-  modelFactory: ModelFactory,
+  modelFactory: ModelFactory<T>,
   trainingWidget?: TrainingWidget
-): Promise<FlowModel> {
+): Promise<T> {
   console.log('Starting training...');
 
   // Try WebGPU first (fastest), fall back to WebGL
@@ -50,7 +51,7 @@ export async function trainModel(
   console.log('Active backend:', tf.getBackend());
 
   // Use existing model from state (for resume) or create new one
-  const flow = state.model ?? modelFactory();
+  const flow = (state.model ?? modelFactory()) as T;
   if (state.model === null) {
     console.log('Created new model using factory function');
   } else {
@@ -133,7 +134,7 @@ export async function trainModel(
       );
 
       // Apply clipping to all gradients
-      const clippedGrads: { [name: string]: tfjs.Tensor } = {};
+      const clippedGrads: Record<string, tfjs.Tensor> = {};
       Object.keys(grads).forEach(name => {
         clippedGrads[name] = tf.mul(grads[name], clipCoeff);
       });
@@ -145,7 +146,8 @@ export async function trainModel(
     });
 
     // Apply clipped gradients
-    optimizer.applyGradients(clippedGrads as any); // Type cast needed for TF.js API
+    // @ts-expect-error - TensorFlow.js type mismatch between gradient types
+    optimizer.applyGradients(clippedGrads);
 
     // Add to loss history every epoch
     lossHistory.push([epoch, lossValue[0]]);

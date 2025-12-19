@@ -1,9 +1,9 @@
 import { loadLossHistory, saveLossHistory } from './loss-history';
-import type { FlowModel, ModelFactory } from './model-interface';
+import type { FlowModel, Generative, ModelFactory } from './model-interface';
 import { initWidget as initMoonsDataset } from './moons-widget';
-import type { PipelineState, TrainingState } from './types';
 import { trainModel } from './train';
 import { initWidget as initTraining } from './training-widget';
+import type { PipelineState, TrainingState } from './types';
 
 /**
  * Create initial pipeline state
@@ -21,7 +21,7 @@ export function createPipelineState(numEpochs = 1000): PipelineState {
 export const createPageState = createPipelineState;
 
 export interface VisualizationCallbacks {
-  updateVisualization: (model: FlowModel, container: HTMLDivElement) => void;
+  updateVisualization: (model: Generative, container: HTMLDivElement) => void;
   showTrainingInProgress?: (container: HTMLDivElement) => void;
 }
 
@@ -29,7 +29,7 @@ export async function initPipeline(
   moonsDatasetContainer: HTMLDivElement,
   trainingContainer: HTMLDivElement,
   flowVisualizationContainer: HTMLDivElement,
-  modelFactory: ModelFactory,
+  modelFactory: ModelFactory<FlowModel & Generative>,
   modelUrl: string,
   lossHistoryUrl: string,
   visualizationCallbacks: VisualizationCallbacks,
@@ -42,27 +42,29 @@ export async function initPipeline(
   const state = createPipelineState(numEpochs);
 
   // Default implementation for showTrainingInProgress if not provided
-  const showTrainingInProgress = visualizationCallbacks.showTrainingInProgress || ((container: HTMLDivElement) => {
-    container.innerHTML = `
-      <div style="
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        height: 400px;
-        background: #f5f5f5;
-        border-radius: 4px;
-      ">
-        <div style="text-align: center; color: #666;">
-          <div style="font-size: 18px; font-weight: bold; margin-bottom: 8px;">
-            Training in Progress
-          </div>
-          <div style="font-size: 14px;">
-            Visualization will be available when training is paused or completed
+  const showTrainingInProgress = visualizationCallbacks.showTrainingInProgress ?? (
+    (container: HTMLDivElement): void => {
+      container.innerHTML = `
+        <div style="
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          height: 400px;
+          background: #f5f5f5;
+          border-radius: 4px;
+        ">
+          <div style="text-align: center; color: #666;">
+            <div style="font-size: 18px; font-weight: bold; margin-bottom: 8px;">
+              Training in Progress
+            </div>
+            <div style="font-size: 14px;">
+              Visualization will be available when training is paused or completed
+            </div>
           </div>
         </div>
-      </div>
-    `;
-  });
+      `;
+    }
+  );
 
   // Moons dataset widget
   initMoonsDataset(moonsDatasetContainer, state);
@@ -77,7 +79,9 @@ export async function initPipeline(
   const trainStatus = trainingWidget.statusText;
 
   // Create model using factory function
-  state.model = modelFactory();
+  // Track with proper type for visualization callbacks
+  let model: FlowModel & Generative = modelFactory();
+  state.model = model;
   console.log('Created model using factory function');
 
   try {
@@ -94,7 +98,7 @@ export async function initPipeline(
       }
 
       // Generate and show visualization
-      visualizationCallbacks.updateVisualization(state.model, flowVisualizationContainer);
+      visualizationCallbacks.updateVisualization(model, flowVisualizationContainer);
     } else {
       trainStatus.textContent = 'Failed to load weights';
     }
@@ -136,7 +140,8 @@ export async function initPipeline(
   // Reset button handler
   resetButton.addEventListener('click', () => {
     // Create new untrained model using factory
-    state.model = modelFactory();
+    model = modelFactory();
+    state.model = model;
     state.trainingState = 'not_started';
     console.log('Reset: Created new untrained model');
 
@@ -145,7 +150,7 @@ export async function initPipeline(
 
     // Update status and visualization
     trainStatus.textContent = 'Model reset. Ready to train.';
-    visualizationCallbacks.updateVisualization(state.model, flowVisualizationContainer);
+    visualizationCallbacks.updateVisualization(model, flowVisualizationContainer);
     updateButtonStates();
   });
 
@@ -172,7 +177,8 @@ export async function initPipeline(
     trainStatus.textContent = 'Training...';
 
     // Train and update model in state
-    state.model = await trainModel(state, modelFactory, trainingWidget);
+    model = await trainModel(state, modelFactory, trainingWidget);
+    state.model = model;
 
     // Store final state before calling other functions (widen type to avoid narrowing issues)
     const finalState = state.trainingState as TrainingState;
@@ -193,7 +199,7 @@ export async function initPipeline(
     }
 
     // Update visualization
-    visualizationCallbacks.updateVisualization(state.model, flowVisualizationContainer);
+    visualizationCallbacks.updateVisualization(model, flowVisualizationContainer);
   }
 
   // Expose state and utilities globally for console access
